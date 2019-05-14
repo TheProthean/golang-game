@@ -24,7 +24,13 @@ var gameXO game.GameState
 var clientIDs map[int]bool
 
 func main() {
-	var servSync sync.WaitGroup
+	l := startListening()
+	defer l.Close()
+	fmt.Println("Successfully started listening on", connAddress+":"+connPort)
+	acceptClients(l)
+}
+
+func startListening() *net.TCPListener {
 	address, err := net.ResolveTCPAddr(connType, connAddress+":"+connPort)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
@@ -35,9 +41,12 @@ func main() {
 		fmt.Println("Error starting server:", err)
 		os.Exit(1)
 	}
-	defer l.Close()
-	fmt.Println("Successfully started listening on", connAddress+":"+connPort)
+	return l
+}
+
+func acceptClients(l *net.TCPListener) {
 	var mutex sync.Mutex
+	var servSync sync.WaitGroup
 	gameConcluded := make(chan int, 1)
 	gameXO = game.New()
 	clientIDs = map[int]bool{1: false, 2: false}
@@ -50,19 +59,24 @@ func main() {
 				os.Exit(1)
 			}
 			atomic.AddInt32(&clientCounter, 1)
-			var newID int
-			for k, v := range clientIDs {
-				if !v {
-					clientIDs[k] = true
-					newID = k
-					break
-				}
-			}
+			newID := findFreeID()
 			fmt.Println("Client", newID, "connected")
 			go handleClient(conn, newID, &mutex, &servSync, gameConcluded)
 		}
 		servSync.Wait()
 	}
+}
+
+func findFreeID() int {
+	var newID int
+	for k, v := range clientIDs {
+		if !v {
+			clientIDs[k] = true
+			newID = k
+			break
+		}
+	}
+	return newID
 }
 
 func handleClient(conn net.Conn, id int, mutex *sync.Mutex, servSync *sync.WaitGroup, gameConcluded chan int) {
@@ -133,10 +147,10 @@ func handleClient(conn net.Conn, id int, mutex *sync.Mutex, servSync *sync.WaitG
 		if err != nil {
 			break
 		}
-		atomic.AddInt32(&clientCounter, -1)
+		atomic.AddInt32(&clientCounter, -1) //Do i even need this?
 		continuation := []byte{0}
 		_, err = conn.Read(continuation)
-		atomic.AddInt32(&clientCounter, 1)
+		atomic.AddInt32(&clientCounter, 1) //Do i even need this?
 		if err != nil {
 			break
 		}
