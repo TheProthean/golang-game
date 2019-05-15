@@ -2,10 +2,13 @@ package game
 
 import "fmt"
 
+//State is just a type for protecting game state field
 type State byte
 
+//FieldSizeInBytes is an offset of state for reading byte stream from TCP connection
 var FieldSizeInBytes = 9
 
+//Enum for saving state of the game in human-readable form
 const (
 	GOINGON State = iota
 	DRAW
@@ -14,11 +17,13 @@ const (
 	DISCONNECTED
 )
 
+//GameState is a struct that stores our game playing field and state of the current game
 type GameState struct {
 	PlayingField []byte
 	State        State
 }
 
+//CheckState checks if the game is already finished
 func (game *GameState) CheckState() {
 	if game.PlayingField[0] == game.PlayingField[1] && game.PlayingField[1] == game.PlayingField[2] && game.PlayingField[0] != 0 {
 		if game.PlayingField[0] == 1 {
@@ -97,6 +102,7 @@ func (game *GameState) CheckState() {
 	}
 }
 
+//ResetGame resets the current game to its default state(that is beginning of the game)
 func (game *GameState) ResetGame() {
 	for i := range game.PlayingField {
 		game.PlayingField[i] = 0
@@ -104,6 +110,7 @@ func (game *GameState) ResetGame() {
 	game.State = GOINGON
 }
 
+//New is a factory function that creates new GameState instance
 func New() GameState {
 	newGame := GameState{
 		PlayingField: make([]byte, 9),
@@ -112,16 +119,18 @@ func New() GameState {
 	return newGame
 }
 
-func Check(bytes []byte, i int) bool {
-	if i > 8 || i < 0 {
+//Check checks if the player's input is correct in this particular game and moment
+func Check(bytes []byte, x int, y int) bool {
+	if x < 1 || x > 3 || y < 1 || y > 3 {
 		return false
 	}
-	if bytes[i] == 1 || bytes[i] == 2 {
+	if bytes[(x-1)*3+y-1] != 0 {
 		return false
 	}
 	return true
 }
 
+//DrawMap draws the playing field in console
 func DrawMap(bytes []byte) {
 	fmt.Printf("\n-----------\n")
 	for i := 0; i < 9; i++ {
@@ -137,6 +146,7 @@ func DrawMap(bytes []byte) {
 	fmt.Println()
 }
 
+//Function that return what symbol should be drawn in the field
 func drawObj(obj int) string {
 	if obj == 0 {
 		return " "
